@@ -1,0 +1,326 @@
+---
+title: "Chocolate Bar Ratings"
+author: "R.Ellazar"
+date: "2023-02-28"
+output: html_document
+---
+
+
+Source of the dataset: https://www.kaggle.com/datasets/rtatman/chocolate-bar-ratings
+
+
+---
+
+
+## Context
+
+Chocolate is one of the most popular candies in the world. Each year, residents of the United States collectively eat more than 2.8 billions pounds. However, not all chocolate bars are created equal! This dataset contains expert ratings of over 1,700 individual chocolate bars, along with information on their regional origin, percentage of cocoa, the variety of chocolate bean used and where the beans were grown.
+
+### Flavors of Cacao Rating System:
+
+-   **5** : Elite (Transcending beyond the ordinary limits)
+-   **4** : Premium (Superior flavor development, character and style)
+-   **3** : Satisfactory (3.0) to praiseworthy (3.75) (well made with special qualities)
+-   **2** : Disappointing (Passable but contains at least one significant flaw)
+-   **1** : Unpleasant (mostly unpalatable)
+
+Each chocolate is evaluated from a combination of both objective qualities and subjective interpretation. A rating here only represents an experience with one bar from one batch. Batch numbers, vintages and review dates are included in the database when known.
+
+The database is narrowly focused on plain dark chocolate with an aim of appreciating the flavors of the cacao when made into chocolate. The ratings do not reflect health benefits, social missions, or organic status.
+
+**Flavor** is the most important component of the Flavors of Cacao ratings. Diversity, balance, intensity and purity of flavors are all considered. It is possible for a straight forward single note chocolate to rate as high as a complex flavor profile that changes throughout. Genetics, terroir, post harvest techniques, processing and storage can all be discussed when considering the flavor component.
+
+**Texture** has a great impact on the overall experience and it is also possible for texture related issues to impact flavor. It is a good way to evaluate the makers vision, attention to detail and level of proficiency.
+
+**Aftermelt** is the experience after the chocolate has melted. Higher quality chocolate will linger and be long lasting and enjoyable. Since the aftermelt is the last impression you get from the chocolate, it receives equal importance in the overall rating.
+
+**Overall** Opinion is really where the ratings reflect a subjective opinion. Ideally it is my evaluation of whether or not the components above worked together and an opinion on the flavor development, character and style. It is also here where each chocolate can usually be summarized by the most prominent impressions that you would remember about each chocolate.
+
+## Columns
+
+`company_maker_if_known` : Name of the company manufacturing the bar.
+
+`specific_bean_origin_or_bar_name` : The specific geo-region of origin for the bar.
+
+`ref` : A value linked to when the review was entered in the database. Higher = more recent.
+
+`review_date` : Date of publication of the review.
+
+`cocoa_percent` : Cocoa percentage (darkness) of the chocolate bar being reviewed.
+
+`company_location` : Manufacturer base country.
+
+`rating` : Expert rating for the bar.
+
+`bean_type` : The variety (breed) of bean used, if provided.
+
+`broad_bean_origin` : The broad geo-region of origin for the bean.
+
+
+---
+
+
+## Analysis Questions:
+
+In this analysis, the dataset will be used to answer the following questions:
+
+-   Where are the best cocoa beans grown?
+-   Which countries produce the highest-rated bars?
+-   What's the relationship between cocoa solids percentage and rating?
+
+
+---
+
+
+## Process
+
+In this analysis, we will be using the following packages: `ggplot2`, `dplyr`, `readxl`, `janitor`
+
+```{r load the packages, echo=TRUE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(janitor)
+```
+
+
+Let's load our dataset and clean the column names to ensure the uniqueness and consistent of it.
+
+```{r load the data and clean names, echo=TRUE}
+df_cocoa = read_excel("data/cocoa_data.xlsx")
+df_cocoa = clean_names(df_cocoa)
+head(df_cocoa)
+```
+
+
+Let's check for duplicate values.
+
+```{r check for duplicates, echo=TRUE}
+if (count(df_cocoa) == count(unique(df_cocoa))) {
+  print("There are no duplicate values") 
+} else {
+  print("There are duplicates")
+}
+```
+
+The above code compares the unique data and the original data we have. If the counts are equal that means we don't have any duplicate values in this dataframe.
+
+And for that, there are no duplicate values in this dataframe.
+
+
+But, before we start with our analysis, let's check our `rating` column to see if there's any missing values. And if there is, we are going to remove it, because it won't make any sense for a row without a rating as that is our metric for answering these questions.
+
+```{r missing ratings}
+sum(is.na(df_cocoa$rating) == TRUE)
+```
+
+In the code above, we count all of the `NA` values we have in `rating` column. We got `0` that means we don't have any missing values for the `rating` column.
+
+
+We can now start with our analysis.
+
+
+---
+
+
+## Analysis
+
+### Where are the best cocoa beans grown?
+
+To answer this question, we will be using two variables: `broad_bean_origin` and `rating`.
+
+Why `broad_bean_origin`?
+
+-   In this question, we are talking about **"WHERE"** and **"GROWN"**. The `broad_bean_origin` contains the specific geo-region of origin for the bean.
+
+Why I didn't choose `company_location`?
+
+-   `company_locaiton` contains the manufacturer base country. Not all manufacturer use the same ingredients. The location of a manufacturer can impact the quality of the ingredients used in the product.
+
+    For example, if a manufacturer is located in a region with best cocoa, this can positively impact the taste of a chocolate produced by the manufacturer.
+
+
+Now, let's make this data frame.
+
+```{r df best cocoa beans grown}
+best_cocoa_grown <- df_cocoa %>% 
+  select(broad_bean_origin, rating) %>% 
+  group_by(broad_bean_origin) %>% 
+  summarise(average_rating = mean(rating))
+
+head(best_cocoa_grown)
+```
+
+The above code grouped all the values of `broad_bean_origin` and calculated the average rating. The `average_rating` will be the metric to determine the cocoa beans grown.
+
+
+Now, let's prepare this data to count how many scored on each ratings.
+
+```{r df ratings count}
+cocoa_count <- c(
+  sum(best_cocoa_grown$average_rating < 6 & best_cocoa_grown$average_rating >= 5),
+  sum(best_cocoa_grown$average_rating < 5 & best_cocoa_grown$average_rating >= 4),
+  sum(best_cocoa_grown$average_rating < 4 & best_cocoa_grown$average_rating >= 3),
+  sum(best_cocoa_grown$average_rating < 3 & best_cocoa_grown$average_rating >= 2),
+  sum(best_cocoa_grown$average_rating < 2 & best_cocoa_grown$average_rating >= 1)
+)
+
+df_cocoa_count <- data.frame(
+  Ratings = c("5", "4", "3", "2", "1"),
+  Counts = cocoa_count
+)
+```
+
+```{r best cocoa beans grown visualization}
+ggplot(df_cocoa_count, aes(Ratings, Counts)) + geom_bar(stat = "identity", fill = "blue") + 
+  geom_text(aes(label = Counts), nudge_y = 2) +
+  labs(title = "Counts of each Ratings")
+```
+
+There are six `broad_bean_origin` value who scored the average rating of 4.
+
+
+We are only interested in the best cocoa beans grown so, let's filter this data greater than or equal to the average rating of 4.
+
+```{r best cocoa beans grown table}
+best_cocoa_grown %>% 
+  filter(average_rating >= 4)
+```
+
+Six rows scored the same average rating of 4.
+
+Here are the countries associated with each region mentioned:
+
+-   `Dom. Rep.` refers to the Dominican Republic, and `Madagascar` refers to the island country off the southeastern coast of Africa.
+-   `Gre.` may refer to Greece, `PNG` to Papua New Guinea, `Haw.` to Hawaii, `Haiti` to the Caribbean country, and `Mad` to Madagascar.
+-   `Guat.` refers to Guatemala, `D.R.` to the Dominican Republic, `Peru` to the South American country, `Mad.` to Madagascar, and `PNG` to Papua New Guinea.
+-   `Peru` refers to the South American country, and `Dom. Rep.` refers to the Dominican Republic.
+-   `Ven` refers to Venezuela, `Bolivia` to the South American country, and `D.R.` to the Dominican Republic.
+-   `Venezuela` refers to the South American country, and `Java` refers to the Indonesian island known for producing coffee beans.
+
+**Therefore, Dominican Republic, Madagascar, Greece, Papua New Guinea, Hawaii, Haiti, Guatemala, Peru, Venezuela, Bolivia, and Java have the best cocoa beans grown.**
+
+
+---
+
+
+### Which countries produce the highest-rated bars?
+
+In this question, we are talking about the **COUNTRY** and the **HIGHEST-RATED BARS**. And as I explained in the previous question, the location of the manufacturer can impact the product so, we are going to use the `company_location` and the `rating` columns.
+
+
+Let's prepare our data to determine the highest-rated bars.
+
+```{r df highest rated bars}
+highest_rated_bar <- df_cocoa %>% 
+  select(company_location, rating) %>% 
+  group_by(company_location) %>% 
+  summarise(highest_rated = max(rating))
+
+head(highest_rated_bar)
+```
+
+In this code, we grouped each value of the `company_location` and got their highest ratings. With this data, we can now determine the highgest-rated bars.
+
+
+But let's see first how many scored on each ratings, let's prepare it.
+
+```{r df highest ratings count}
+highest_count <- c(
+  sum(highest_rated_bar$highest_rated < 6 & highest_rated_bar$highest_rated >= 5),
+  sum(highest_rated_bar$highest_rated < 5 & highest_rated_bar$highest_rated >= 4),
+  sum(highest_rated_bar$highest_rated < 4 & highest_rated_bar$highest_rated >= 3),
+  sum(highest_rated_bar$highest_rated < 3 & highest_rated_bar$highest_rated >= 2),
+  sum(highest_rated_bar$highest_rated < 2 & highest_rated_bar$highest_rated >= 1)
+)
+
+df_highest_count <- data.frame(
+  Ratings = c("5", "4", "3", "2", "1"),
+  Counts = highest_count
+)
+```
+
+```{r highest rated bars visualization}
+ggplot(df_highest_count, aes(Ratings, Counts)) + geom_bar(stat = "identity", fill = "blue") + 
+  geom_text(aes(label = Counts), nudge_y = 2) +
+  labs(title = "Counts of each Ratings")
+```
+
+In this visualization, we can see that one country scored the perfect 5.
+
+
+Let's look at the value.
+
+```{r highest rated bars table}
+filter(highest_rated_bar, highest_rated >= 5)
+```
+
+**Italy is the highest-rated bar.**
+
+
+Then, Is Italy using the best cocoa beans grown? Let's find out.
+
+```{r highest rated bar, best cocoa beans grown 1}
+df_cocoa %>% 
+  select(company_location, rating, broad_bean_origin) %>% 
+  filter(company_location == "Italy", rating == 5)
+```
+
+As we can see here, Italy is using beans from Venezuela. And if we are going to look at our value from the previous question.
+
+
+```{r highest rated bar, best cocoa beans grown 2}
+best_cocoa_grown %>% 
+  filter(average_rating >= 4)
+```
+
+Venezuela is one of the best cocoa beans grown who scored 4.
+
+Therefore, the location of the manufacturer can potentially affect the taste of the product, its just one of many factors that can impact the final flavor of a product.
+
+
+---
+
+
+### What's the relationship between cocoa solids percentage and rating?
+
+In this question, we will be using the columns `cocoa_percent` and `rating` to determine the correlation between cocoa solids percentage and rating.
+
+
+Let's create our dataframe.
+
+```{r df correlation of cocoa percentage and rating}
+corr_cocoa_rating <- df_cocoa %>% 
+  select(cocoa_percent, rating)
+
+head(corr_cocoa_rating)
+```
+
+
+Let' visualize it.
+
+```{r correlation of cocoa percentage and rating visualization}
+corr_r <- cor(corr_cocoa_rating$cocoa_percent, corr_cocoa_rating$rating)
+
+ggplot(corr_cocoa_rating, aes(x = cocoa_percent, y = rating)) + 
+  geom_point() + 
+  geom_smooth(formula = y ~ x, method = lm, se = FALSE) +
+  annotate("text", x = 0.5, y = 4.5, label = paste("R = ", format(round(corr_r, 2), nsmall = 2))) +
+  labs(title = "Correlation of Cocoa Percentage and Ratings")
+```
+
+**There are little or no correlation of** `cocoa_percent` **and** `rating`**.**
+
+
+---
+
+
+## Conclusion
+
+In this analysis, we created three questions to determine the following:
+
+-   The best cocoa beans grown
+-   Country who produce the highest rated bars
+-   The correlation between cocoa percentage and rating
+
+Six of them tied for the best cocoa beans grown. And Italy is the highest rated bar that uses one of the best cocoa beans which is from Venezuela. Although, we saw that there is almost no correlation with the cocoa percentage and rating.
