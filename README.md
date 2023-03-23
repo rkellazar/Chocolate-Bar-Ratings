@@ -1,5 +1,7 @@
 # Chocolate-Bar-Ratings
 
+![dark chocolate](dark-choco.jpg)
+
 Source of the Dataset: https://www.kaggle.com/datasets/rtatman/chocolate-bar-ratings
 
 Read the Article: http://rpubs.com/rkellazar/chocolate-bar-ratings
